@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pronunciation Checker</title>
+    <script src="https://cdn.jsdelivr.net/npm/recordrtc/RecordRTC.js"></script>
+</head>
+<body>
+    <h1>Pronunciation Checker</h1>
+    <p>Click the Record button to start recording your voice.</p>
+    <button id="recordButton" onclick="startRecording()">Record</button>
+    <button id="stopButton" onclick="stopRecording()">Stop</button>
+    <br>
+    <br>
+    <div id="result"></div>
+
+    <script>
+        let recorder;
+        let audioStream;
+
+        function startRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    audioStream = stream;
+                    recorder = RecordRTC(stream, {
+                        type: 'audio',
+                        mimeType: 'audio/wav',
+                        recorderType: StereoAudioRecorder,
+                        numberOfAudioChannels: 1,
+                        desiredSampRate: 16000,
+                        bufferSize: 16384
+                    });
+                    recorder.startRecording();
+                })
+                .catch(function(err) {
+                    console.log('Error:', err);
+                });
+        }
+
+        function stopRecording() {
+            recorder.stopRecording(function() {
+                audioStream.getAudioTracks()[0].stop();
+                let blob = recorder.getBlob();
+                let formData = new FormData();
+                formData.append('audio', blob, 'audio.wav');
+                fetch('/api/pronunciation', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    let resultDiv = document.getElementById('result');
+                    if (data.status === 'success') {
+                        resultDiv.innerHTML = '<p>Your pronunciation is correct!</p>';
+                    } else {
+                        resultDiv.innerHTML = '<p>Your pronunciation is incorrect. The correct pronunciation is: ' + data.message + '</p>';
+                    }
+                })
+                .catch(function(err) {
+                    console.log('Error:', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
